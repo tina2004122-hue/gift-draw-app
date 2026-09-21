@@ -1,9 +1,8 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
-import pandas as pd
 import random
-from datetime import datetime
+import json
 
 # ==================== 1. 初始化 Firebase ====================
 @st.cache_resource
@@ -32,109 +31,13 @@ def derangement_shuffle(names):
     return pairs
 
 # ==================== 3. 介面主邏輯 ====================
-st.set_page_config(page_title="活動與點餐系統", layout="centered", page_icon="🎁")
+st.set_page_config(page_title="活動抽獎與交換禮物", layout="centered", page_icon="🎁")
 
-tab_lunch, tab1, tab2 = st.tabs(["🍱 揪團訂午餐", "🎄 交換禮物專用", "🎉 部門抽獎專用"])
-
-# -------------------- TAB 0: 揪團訂午餐 --------------------
-with tab_lunch:
-    st.header("🍱 今日午餐揪團")
-
-    if "current_lunch_room" in st.session_state and st.session_state["current_lunch_room"]:
-        lunch_id = st.session_state["current_lunch_room"]
-        l_ref = db.collection("lunch_rooms").document(lunch_id)
-        l_doc = l_ref.get()
-
-        if not l_doc.exists:
-            st.error("此午餐團已關閉或不存在！")
-            if st.button("返回揪團大廳"):
-                del st.session_state["current_lunch_room"]
-                st.rerun()
-        else:
-            lunch = l_doc.to_dict()
-            st.info(f"📍 店家：**{lunch['shop_name']}** ｜ 團號：**{lunch['room_id']}** ｜ 發起人：**{lunch['host_name']}**")
-            if lunch.get("note"):
-                st.caption(f"備註說明：{lunch['note']}")
-
-            col_btn1, col_btn2 = st.columns(2)
-            with col_btn1:
-                if st.button("🔄 刷新名單", key="ref_lunch"):
-                    st.rerun()
-            with col_btn2:
-                if st.button("🚪 離開此團", key="exit_lunch"):
-                    del st.session_state["current_lunch_room"]
-                    st.rerun()
-
-            st.markdown("---")
-            st.markdown("#### ✍️ 我要點餐")
-            c1, c2 = st.columns(2)
-            with c1:
-                u_name = st.text_input("你的名字：", key="l_user_name").strip()
-                item_name = st.text_input("餐點品名：", key="l_item_name").strip()
-            with c2:
-                item_price = st.number_input("金額：", min_value=0, max_value=2000, value=100, step=5, key="l_price")
-                item_memo = st.text_input("備註（例：少飯、不辣）：", key="l_memo").strip()
-
-            if st.button("送出訂單 ➕", type="primary"):
-                if not u_name or not item_name:
-                    st.error("姓名與餐點名稱不能為空！")
-                else:
-                    orders = lunch.get("orders", [])
-                    orders.append({
-                        "name": u_name,
-                        "item": item_name,
-                        "price": int(item_price),
-                        "memo": item_memo,
-                        "paid": False
-                    })
-                    l_ref.update({"orders": orders})
-                    st.success("點餐成功！")
-                    st.rerun()
-
-            st.markdown("---")
-            st.markdown("#### 📋 點餐明細與統計")
-            orders = lunch.get("orders", [])
-            if not orders:
-                st.info("目前還沒有人點餐！")
-            else:
-                df = pd.DataFrame(orders)
-                total_sum = df["price"].sum()
-                total_count = len(df)
-                st.metric(label="目前統計", value=f"共 {total_count} 份", delta=f"總金額 NT$ {total_sum}")
-                show_df = df.rename(columns={"name": "姓名", "item": "餐點", "price": "金額", "memo": "備註"})
-                st.dataframe(show_df[["姓名", "餐點", "金額", "備註"]], use_container_width=True)
-
-                with st.expander("📞 打電話叫餐彙總（品項小計）"):
-                    summary = df.groupby("item").agg(數量=('name', 'count'), 金額小計=('price', 'sum')).reset_index()
-                    st.table(summary)
-
-    else:
-        l_action = st.radio("選擇操作", ["輸入團號跟團", "發起新午餐團"], horizontal=True, key="lunch_action")
-        if l_action == "發起新午餐團":
-            st.subheader("發起午餐團")
-            new_shop = st.text_input("店家名稱", key="n_shop")
-            new_l_host = st.text_input("主揪姓名", key="n_l_host")
-            new_note = st.text_input("備註說明", key="n_note")
-            if st.button("開團並進入 🚀", type="primary"):
-                if new_shop.strip() and new_l_host.strip():
-                    new_lid = str(random.randint(100000, 999999))
-                    db.collection("lunch_rooms").document(new_lid).set({
-                        "room_id": new_lid, "shop_name": new_shop.strip(), "host_name": new_l_host.strip(),
-                        "note": new_note.strip(), "created_at": datetime.now().strftime("%Y-%m-%d"), "orders": []
-                    })
-                    st.session_state["current_lunch_room"] = new_lid
-                    st.rerun()
-        else:
-            st.subheader("輸入 6 碼團號加入點餐")
-            input_lid = st.text_input("請輸入 6 碼團號：", key="in_lid").strip()
-            if st.button("進入點餐"):
-                if input_lid and db.collection("lunch_rooms").document(input_lid).get().exists:
-                    st.session_state["current_lunch_room"] = input_lid
-                    st.rerun()
+tab1, tab2 = st.tabs(["🎄 交換禮物專用", "🎉 部門抽獎專用"])
 
 # -------------------- TAB 1: 交換禮物 --------------------
 with tab1:
-    st.header("🎁 交換禮物專用")
+    st.header("🎁 交換禮物房間")
 
     # 判斷是否已在特定房間內
     if "current_gift_room" in st.session_state and st.session_state["current_gift_room"]:
@@ -170,7 +73,7 @@ with tab1:
                 st.markdown("---")
                 st.markdown("#### 👤 成員簽到加入")
                 join_name = st.text_input("輸入你的名字：", key="join_name_input").strip()
-                join_pass = st.text_input("設定 4 位數個人密碼：", type="password", max_chars=4, key="join_pass_input").strip()
+                join_pass = st.text_input("設定 4 位數個人防窺密碼：", type="password", max_chars=4, key="join_pass_input").strip()
 
                 if st.button("確認簽到加入"):
                     if not join_name or not join_pass:
@@ -186,6 +89,7 @@ with tab1:
 
                 st.markdown("---")
                 with st.expander(f"👑 房主專區（僅限 {host_name} 操作）"):
+                    st.caption("防誤觸保護：輸入房主密碼方可啟動配對")
                     verify_host_pass = st.text_input("請輸入房主密碼：", type="password", key="v_h_pass")
                     if st.button("全員到齊，開始配對開獎！", type="primary"):
                         if verify_host_pass != room["passcodes"].get(host_name):
@@ -197,7 +101,7 @@ with tab1:
                             room_ref.update({"status": "finished", "pairs": final_pairs})
                             st.rerun()
 
-            # 狀態 2：配對已完成（查看/回溯結果）
+            # 狀態 2：配對已完成（查看/隔年回溯結果）
             elif room["status"] == "finished":
                 st.success("🎉 配對已完成！本活動紀錄已永久保存於雲端。")
                 if st.button("🚪 退出房間（回首頁）", key="exit_gift_fin"):
@@ -221,15 +125,14 @@ with tab1:
                         st.markdown(f"### ✨ **{my_name}**，你抽到的是：👉 **{target}** 👈")
                         st.caption("記好後可選回空白，避免旁人看見。")
 
-    # 未進房狀態：顯示建立、房號進入、以及【核心功能：雲端歷史卡片】
+    # 未進房狀態：首頁
     else:
-        # ===== 核心：雲端歷史卡片專區 =====
-        with st.expander("📜 點此回溯歷史交換禮物（歷史卡片專區）", expanded=True):
-            st.caption("只要輸入你的名字，雲端會自動列出你過去所有玩過的房間卡片！")
-            search_user = st.text_input("輸入你的名字查歷史紀錄：", key="search_user_history").strip()
+        # ===== 雲端歷史卡片專區 =====
+        with st.expander("📜 我的歷史房間（卡片回溯專區）", expanded=True):
+            st.caption("輸入你的名字，雲端直接找出你參加過的所有歷史房間卡片：")
+            search_user = st.text_input("輸入姓名查歷史卡片：", key="search_user_history").strip()
             
             if search_user:
-                # 從雲端撈取包含該成員的所有房間
                 history_query = db.collection("rooms").where("members", "array_contains", search_user).stream()
                 found_rooms = [doc.to_dict() for doc in history_query]
 
@@ -238,7 +141,7 @@ with tab1:
                 else:
                     st.write(f"🎉 找到 **{len(found_rooms)}** 個你參與過的房間卡片：")
                     for r in found_rooms:
-                        status_tag = "✅ 已開獎" if r.get("status") == "finished" else "⏳ 等待中"
+                        status_tag = "✅ 已開獎" if r.get("status") == "finished" else "⏳ 進行中"
                         with st.container(border=True):
                             c_col1, c_col2 = st.columns([3, 1])
                             with c_col1:
@@ -250,14 +153,13 @@ with tab1:
                                     st.rerun()
 
         st.markdown("---")
-        # 一般建立或輸入房號
-        action = st.radio("選擇即時操作", ["建立新房間", "手動輸入房號進入"], horizontal=True, key="gift_action_radio")
+        action = st.radio("選擇操作", ["建立新房間", "手動輸入房號進入"], horizontal=True, key="gift_action_radio")
 
         if action == "建立新房間":
             st.subheader("建立交換禮物房間")
-            room_name = st.text_input("房間名稱（如：2026 聖誕交換禮物）", key="c_room_name")
-            host_name = st.text_input("房主姓名", key="c_host_name")
-            host_pass = st.text_input("設定房主專用密碼（4位數）", type="password", max_chars=4, key="c_host_pass")
+            room_name = st.text_input("房間名稱（如：2026 大學聖誕交換禮物）", key="c_room_name")
+            host_name = st.text_input("房主姓名（房主亦一同參與）", key="c_host_name")
+            host_pass = st.text_input("設定房主專用密碼（4位數數字）", type="password", max_chars=4, key="c_host_pass")
 
             if st.button("建立房間並直接進入 🚀", type="primary"):
                 if not room_name.strip() or not host_name.strip() or not host_pass.strip():
@@ -286,7 +188,7 @@ with tab1:
                 else:
                     doc = db.collection("rooms").document(input_rid).get()
                     if not doc.exists:
-                        st.error("找不到此房號！")
+                        st.error("找不到此房號，請確認後重新輸入！")
                     else:
                         st.session_state["current_gift_room"] = input_rid
                         st.rerun()
@@ -338,12 +240,12 @@ with tab2:
                         st.rerun()
 
                 st.markdown("---")
-                with st.expander(f"👑 房主抽獎控制（僅限 {l_host} 操作）"):
+                with st.expander(f"👑 房主開獎專區（僅限 {l_host} 操作）"):
                     v_l_host_pass = st.text_input("請輸入房主管理密碼：", type="password", key="vl_h_pass")
                     draw_num = st.number_input("抽出幾個人？", min_value=1, max_value=max(1, len(l_room["members"])), value=1, step=1)
                     if st.button("確認開獎 🎊", type="primary"):
                         if v_l_host_pass != l_room.get("host_pass"):
-                            st.error("❌ 房主密碼錯誤！")
+                            st.error("❌ 房主密碼錯誤！只有房主能開獎！")
                         elif len(l_room["members"]) == 0:
                             st.error("名單內沒有人！")
                         else:
@@ -365,7 +267,7 @@ with tab2:
                     st.rerun()
 
     else:
-        # 部門抽獎也加上歷史卡片回溯
+        # 部門抽獎的歷史清單卡片
         with st.expander("📜 查看過去歷史抽獎活動", expanded=False):
             search_lotto = db.collection("lottery_rooms").stream()
             all_lottos = [doc.to_dict() for doc in search_lotto]
@@ -381,13 +283,13 @@ with tab2:
                 st.info("尚無歷史抽獎紀錄。")
 
         st.markdown("---")
-        l_action = st.radio("選擇操作", ["建立抽獎房", "輸入房號加入/看榜"], horizontal=True, key="l_action_radio")
+        l_action = st.radio("選擇操作", ["建立抽獎房", "手動輸入房號進入"], horizontal=True, key="l_action_radio")
 
         if l_action == "建立抽獎房":
             st.subheader("建立現場抽獎房")
-            new_l_name = st.text_input("抽獎活動名稱（如：尾牙抽獎）", key="nl_name")
+            new_l_name = st.text_input("抽獎活動名稱（如：會計部尾牙）", key="nl_name")
             new_l_host = st.text_input("房主姓名", key="nl_host")
-            new_l_pass = st.text_input("設定房主專用密碼（4位數）", type="password", max_chars=4, key="nl_pass")
+            new_l_pass = st.text_input("設定房主專用密碼（4位數數字）", type="password", max_chars=4, key="nl_pass")
 
             if st.button("建立房間並直接進入 🚀", type="primary"):
                 if not new_l_name.strip() or not new_l_host.strip() or not new_l_pass.strip():
@@ -402,7 +304,7 @@ with tab2:
                     st.session_state["current_lotto_room"] = new_l_id
                     st.rerun()
         else:
-            st.subheader("輸入房號進入抽獎房")
+            st.subheader("手動輸入房號進入")
             input_l_id = st.text_input("請輸入 6 位數抽獎房號：", key="inl_id").strip()
             if st.button("進入抽獎房"):
                 if not input_l_id:
