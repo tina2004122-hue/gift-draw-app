@@ -20,6 +20,7 @@ db = init_firebase()
 
 # ==================== 2. 演算法函式 ====================
 def derangement_shuffle(names):
+    """環狀閉環配對：保證無人抽到自己、無重複、成完整閉環"""
     shuffled = names.copy()
     random.shuffle(shuffled)
     pairs = {}
@@ -29,7 +30,7 @@ def derangement_shuffle(names):
         pairs[giver] = receiver
     return pairs
 
-# ==================== 3. 頁面設定與可愛 App CSS ====================
+# ==================== 3. 頁面設定與 App CSS ====================
 st.set_page_config(page_title="派對抽獎小助手", layout="centered", page_icon="🎁")
 
 st.markdown("""
@@ -40,10 +41,13 @@ st.markdown("""
     }
     header, footer {visibility: hidden;}
 
-    /* 確保所有元素置中對齊 */
-    .stMainBlockContainer, [data-testid="stVerticalBlock"] {
-        align-items: center !important;
-        text-align: center !important;
+    /* 主容器限制為手機卡片寬度並置中 */
+    .block-container {
+        max-width: 440px !important;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
     }
 
     /* 標題與文字居中 */
@@ -51,7 +55,7 @@ st.markdown("""
         font-size: 2.2rem;
         font-weight: 800;
         color: #ff5a5f;
-        margin-top: 1.5rem;
+        margin-top: 1rem;
         margin-bottom: 0.2rem;
         text-align: center;
     }
@@ -82,17 +86,40 @@ st.markdown("""
         line-height: 1.4 !important;
     }
     .circle-btn-container div.stButton > button:hover {
-        transform: translateY(-5px) scale(1.05) !important;
+        transform: translateY(-4px) scale(1.03) !important;
         box-shadow: 0 14px 28px rgba(255, 90, 95, 0.25) !important;
         border-color: #ff5a5f !important;
         color: #ff5a5f !important;
     }
 
-    /* 內頁通用圓角長按鈕 */
+    /* 內頁通用按鈕 */
     div.stButton > button {
+        width: 100% !important;
         border-radius: 16px !important;
         font-weight: 700 !important;
+        height: 3.4rem !important;
         transition: all 0.2s ease !important;
+        border: 1px solid #edf2f7 !important;
+        background-color: #ffffff !important;
+        color: #2d3748 !important;
+        margin-bottom: 0.6rem !important;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
+        border-color: #ff5a5f !important;
+        color: #ff5a5f !important;
+    }
+
+    /* 主要確認操作紅色按鈕 */
+    div.stButton > button[kind="primary"] {
+        background-color: #ff5a5f !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #e0484d !important;
+        color: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -101,13 +128,12 @@ if "app_page" not in st.session_state:
     st.session_state["app_page"] = "home"
 
 # =========================================================
-# 🏠 第一頁：首頁（對齊標題、可愛雙圓形按鈕）
+# 🏠 第一頁：首頁（雙大圓形按鈕）
 # =========================================================
 if st.session_state["app_page"] == "home":
     st.markdown('<div class="app-title">🎁 派對抽獎小助手</div>', unsafe_allow_html=True)
     st.markdown('<div class="app-subtitle">請選擇您要使用的功能：</div>', unsafe_allow_html=True)
 
-    # 用兩欄左右對稱，放置兩個超可愛的大圓形按鈕
     c1, c2 = st.columns(2)
     with c1:
         st.markdown('<div class="circle-btn-container">', unsafe_allow_html=True)
@@ -138,7 +164,7 @@ elif st.session_state["app_page"] == "gift_menu":
 
         if not room_doc.exists:
             st.error("此房間已不存在！")
-            if st.button("返回專區選單"):
+            if st.button("返回專區選單", key="b_ret_gift_menu"):
                 del st.session_state["current_gift_room"]
                 st.rerun()
         else:
@@ -212,10 +238,10 @@ elif st.session_state["app_page"] == "gift_menu":
                         st.markdown(f"### ✨ **{my_name}**，你抽到的是：👉 **{target}** 👈")
 
     else:
-        st.markdown('<div class="app-subtitle">請選擇操作：</div>', unsafe_allow_html=True)
         action = st.session_state.get("gift_action", "menu")
 
         if action == "menu":
+            st.markdown('<div class="app-subtitle">請選擇操作：</div>', unsafe_allow_html=True)
             if st.button("1. 👑 建立房間", key="btn_g_c"):
                 st.session_state["gift_action"] = "create"
                 st.rerun()
@@ -279,30 +305,40 @@ elif st.session_state["app_page"] == "gift_menu":
 
         elif action == "history":
             st.subheader("📜 我的歷史房間卡片")
-            st.caption("輸入姓名，雲端自動找出所有你參與過的房間卡片：")
+            st.caption("輸入姓名，點擊確認即可查出所有歷史紀錄：")
             search_user = st.text_input("輸入你的名字：", key="inp_h_guser").strip()
 
-            if search_user:
-                history_query = db.collection("rooms").where("members", "array_contains", search_user).stream()
+            # 新增確認查詢按鈕
+            if st.button("🔍 查詢我的歷史房間", type="primary", key="btn_do_search_history"):
+                if not search_user:
+                    st.warning("請先輸入名字再查詢！")
+                else:
+                    st.session_state["searched_user"] = search_user
+
+            # 顯示查詢結果
+            target_user = st.session_state.get("searched_user", "")
+            if target_user:
+                history_query = db.collection("rooms").where("members", "array_contains", target_user).stream()
                 found_rooms = [doc.to_dict() for doc in history_query]
 
                 if not found_rooms:
-                    st.info(f"雲端找不到關於「{search_user}」的交換禮物紀錄。")
+                    st.info(f"雲端找不到關於「{target_user}」的交換禮物紀錄。")
                 else:
-                    st.write(f"🎉 找到 **{len(found_rooms)}** 個歷史房間：")
+                    st.write(f"🎉 找到 **{len(found_rooms)}** 個「{target_user}」參與過的房間：")
                     for r in found_rooms:
                         status_tag = "✅ 已開獎" if r.get("status") == "finished" else "⏳ 進行中"
                         with st.container(border=True):
-                            c1, c2 = st.columns([3, 1])
-                            with c1:
-                                st.markdown(f"**🎁 {r.get('room_name', '未命名房間')}**")
-                                st.caption(f"房號：`{r['room_id']}` ｜ 房主：{r.get('host_name')} ｜ {status_tag}")
-                            with c2:
-                                if st.button("進入卡片 👉", key=f"card_{r['room_id']}"):
-                                    st.session_state["current_gift_room"] = r["room_id"]
-                                    st.session_state["gift_action"] = "menu"
-                                    st.rerun()
+                            st.markdown(f"**🎁 {r.get('room_name', '未命名房間')}**")
+                            st.caption(f"房號：`{r['room_id']}` ｜ 房主：{r.get('host_name')} ｜ {status_tag}")
+                            if st.button("進入此房間卡片 👉", key=f"card_{r['room_id']}"):
+                                st.session_state["current_gift_room"] = r["room_id"]
+                                st.session_state["gift_action"] = "menu"
+                                st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("⬅️ 返回", key="b_back_gh"):
+                if "searched_user" in st.session_state:
+                    del st.session_state["searched_user"]
                 st.session_state["gift_action"] = "menu"
                 st.rerun()
 
@@ -319,7 +355,7 @@ elif st.session_state["app_page"] == "lotto_menu":
 
         if not l_doc.exists:
             st.error("抽獎房不存在！")
-            if st.button("返回專區選單"):
+            if st.button("返回專區選單", key="b_ret_lotto_menu"):
                 del st.session_state["current_lotto_room"]
                 st.rerun()
         else:
@@ -381,10 +417,10 @@ elif st.session_state["app_page"] == "lotto_menu":
                     st.rerun()
 
     else:
-        st.markdown('<div class="app-subtitle">請選擇操作：</div>', unsafe_allow_html=True)
         l_action = st.session_state.get("lotto_action", "menu")
 
         if l_action == "menu":
+            st.markdown('<div class="app-subtitle">請選擇操作：</div>', unsafe_allow_html=True)
             if st.button("1. 👑 建立房間", key="btn_l_c"):
                 st.session_state["lotto_action"] = "create"
                 st.rerun()
@@ -449,7 +485,8 @@ elif st.session_state["app_page"] == "lotto_menu":
                 for al in all_lottos:
                     l_stat = "✅ 已開獎" if al.get("status") == "finished" else "⏳ 進行中"
                     with st.container(border=True):
-                        st.markdown(f"**🎉 {al.get('room_name')}**（房號：`{al['room_id']}`）- {l_stat}")
+                        st.markdown(f"**🎉 {al.get('room_name')}**")
+                        st.caption(f"房號：`{al['room_id']}` ｜ 房主：{al.get('host_name')} ｜ {l_stat}")
                         if st.button("查看此結果 👉", key=f"btn_l_{al['room_id']}"):
                             st.session_state["current_lotto_room"] = al["room_id"]
                             st.session_state["lotto_action"] = "menu"
