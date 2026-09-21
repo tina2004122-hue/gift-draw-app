@@ -30,16 +30,69 @@ def derangement_shuffle(names):
         pairs[giver] = receiver
     return pairs
 
-# ==================== 3. 介面主邏輯 ====================
-st.set_page_config(page_title="活動抽獎與交換禮物", layout="centered", page_icon="🎁")
+# ==================== 3. 頁面設定與可愛 App CSS ====================
+st.set_page_config(page_title="派對抽獎小助手", layout="centered", page_icon="🎁")
 
+st.markdown("""
+<style>
+    /* 整體背景柔和色調 */
+    .stApp {
+        background-color: #f7f9f6;
+    }
+    
+    /* 隱藏上方預設白邊與頁尾 */
+    header, footer {visibility: hidden;}
+    
+    /* 可愛標題樣式 */
+    .app-title {
+        text-align: center;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #ff6b4a;
+        margin-bottom: 0.2rem;
+    }
+    .app-subtitle {
+        text-align: center;
+        color: #718096;
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* 主要按鈕美化成圓角大卡片按鈕 */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 16px;
+        height: 3.2rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+        transition: all 0.2s ease;
+        border: none;
+        margin-bottom: 0.5rem;
+    }
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+    }
+
+    /* 容器白底圓角卡片 */
+    [data-testid="stVerticalBlock"] > div:has(div.app-card) {
+        background-color: #ffffff;
+        padding: 1.5rem;
+        border-radius: 24px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 頂部導航
 tab1, tab2 = st.tabs(["🎄 交換禮物專用", "🎉 部門抽獎專用"])
 
-# -------------------- TAB 1: 交換禮物 --------------------
+# ==================== TAB 1: 交換禮物 ====================
 with tab1:
-    st.header("🎁 交換禮物房間")
-
-    # 判斷是否已在特定房間內
+    st.markdown('<div class="app-title">🎁 交換禮物派對</div>', unsafe_allow_html=True)
+    
+    # 判斷是否在房間內
     if "current_gift_room" in st.session_state and st.session_state["current_gift_room"]:
         room_id = st.session_state["current_gift_room"]
         room_ref = db.collection("rooms").document(room_id)
@@ -53,13 +106,12 @@ with tab1:
         else:
             room = room_doc.to_dict()
             host_name = room.get("host_name", "房主")
-            st.info(f"📍 房間名稱：**{room['room_name']}** ｜ 房號：**{room['room_id']}** ｜ 房主：**{host_name}**")
+            st.success(f"📍 **{room['room_name']}** ｜ 房號：`{room['room_id']}` ｜ 房主：`{host_name}`")
 
             # 狀態 1：等待報名中
             if room["status"] == "waiting":
-                st.subheader("👥 成員簽到清單")
-                st.write(f"目前已加入（共 {len(room['members'])} 人）：")
-                st.success("、".join(room["members"]))
+                st.write(f"👥 **已加入名單（共 {len(room['members'])} 人）：**")
+                st.info("、".join(room["members"]))
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -89,11 +141,10 @@ with tab1:
 
                 st.markdown("---")
                 with st.expander(f"👑 房主專區（僅限 {host_name} 操作）"):
-                    st.caption("防誤觸保護：輸入房主密碼方可啟動配對")
                     verify_host_pass = st.text_input("請輸入房主密碼：", type="password", key="v_h_pass")
                     if st.button("全員到齊，開始配對開獎！", type="primary", key="btn_gift_start_draw"):
                         if verify_host_pass != room["passcodes"].get(host_name):
-                            st.error("❌ 房主密碼錯誤！只有房主可以按開獎！")
+                            st.error("❌ 房主密碼錯誤！只有房主能開獎！")
                         elif len(room["members"]) < 2:
                             st.error("至少需要 2 人才能配對！")
                         else:
@@ -101,9 +152,10 @@ with tab1:
                             room_ref.update({"status": "finished", "pairs": final_pairs})
                             st.rerun()
 
-            # 狀態 2：配對已完成（查看/隔年回溯結果）
+            # 狀態 2：配對已完成
             elif room["status"] == "finished":
-                st.success("🎉 配對已完成！本活動紀錄已永久保存於雲端。")
+                st.balloons()
+                st.success("🎉 配對已完成！活動紀錄已永久保存於雲端。")
                 if st.button("🚪 退出房間（回首頁）", key="exit_gift_fin"):
                     del st.session_state["current_gift_room"]
                     st.rerun()
@@ -121,47 +173,35 @@ with tab1:
                         st.error("密碼錯誤，請重新輸入！")
                     else:
                         target = room["pairs"].get(my_name)
-                        st.balloons()
                         st.markdown(f"### ✨ **{my_name}**，你抽到的是：👉 **{target}** 👈")
                         st.caption("記好後可選回空白，避免旁人看見。")
 
-    # 未進房狀態：首頁
+    # 未進房狀態：三顆大按鈕選單
     else:
-        # ===== 雲端歷史卡片專區 =====
-        with st.expander("📜 我的歷史房間（卡片回溯專區）", expanded=True):
-            st.caption("輸入你的名字，雲端直接找出你參加過的所有歷史房間卡片：")
-            search_user = st.text_input("輸入姓名查歷史卡片：", key="search_user_history").strip()
-            
-            if search_user:
-                history_query = db.collection("rooms").where("members", "array_contains", search_user).stream()
-                found_rooms = [doc.to_dict() for doc in history_query]
+        st.markdown('<div class="app-subtitle">請選擇功能開始使用：</div>', unsafe_allow_html=True)
+        if "gift_menu" not in st.session_state:
+            st.session_state["gift_menu"] = "menu"
 
-                if not found_rooms:
-                    st.info(f"雲端找不到關於「{search_user}」的交換禮物紀錄。")
-                else:
-                    st.write(f"🎉 找到 **{len(found_rooms)}** 個你參與過的房間卡片：")
-                    for r in found_rooms:
-                        status_tag = "✅ 已開獎" if r.get("status") == "finished" else "⏳ 進行中"
-                        with st.container(border=True):
-                            c_col1, c_col2 = st.columns([3, 1])
-                            with c_col1:
-                                st.markdown(f"### 🎁 {r.get('room_name', '未命名房間')}")
-                                st.caption(f"房號：`{r['room_id']}` ｜ 房主：{r.get('host_name')} ｜ 狀態：{status_tag}")
-                            with c_col2:
-                                if st.button("進入卡片 👉", key=f"card_{r['room_id']}"):
-                                    st.session_state["current_gift_room"] = r["room_id"]
-                                    st.rerun()
+        # 主選單按鈕
+        if st.session_state["gift_menu"] == "menu":
+            if st.button("👑 建立房間", key="btn_m_g_create"):
+                st.session_state["gift_menu"] = "create"
+                st.rerun()
+            if st.button("🔑 手動輸入房號進入", key="btn_m_g_join"):
+                st.session_state["gift_menu"] = "join"
+                st.rerun()
+            if st.button("📜 我的歷史房間", key="btn_m_g_history"):
+                st.session_state["gift_menu"] = "history"
+                st.rerun()
 
-        st.markdown("---")
-        action = st.radio("選擇操作", ["建立新房間", "手動輸入房號進入"], horizontal=True, key="gift_action_radio")
-
-        if action == "建立新房間":
-            st.subheader("建立交換禮物房間")
-            room_name = st.text_input("房間名稱（如：2026 大學聖誕交換禮物）", key="c_room_name")
+        # 子功能 1：建立房間
+        elif st.session_state["gift_menu"] == "create":
+            st.subheader("👑 建立交換禮物房間")
+            room_name = st.text_input("房間名稱（如：2026 聖誕交換禮物）", key="c_room_name")
             host_name = st.text_input("房主姓名（房主亦一同參與）", key="c_host_name")
-            host_pass = st.text_input("設定房主專用密碼（4位數數字）", type="password", max_chars=4, key="c_host_pass")
+            host_pass = st.text_input("設定房主專用密碼（4位數）", type="password", max_chars=4, key="c_host_pass")
 
-            if st.button("建立房間並直接進入 🚀", type="primary", key="btn_create_gift_room"):
+            if st.button("確認建立並進入 🚀", type="primary", key="btn_create_gift_room"):
                 if not room_name.strip() or not host_name.strip() or not host_pass.strip():
                     st.error("請完整填寫房名、房主姓名與密碼！")
                 else:
@@ -177,12 +217,17 @@ with tab1:
                         "pairs": {}
                     })
                     st.session_state["current_gift_room"] = new_room_id
+                    st.session_state["gift_menu"] = "menu"
                     st.rerun()
+            if st.button("⬅️ 返回主選單", key="b_back_g_c"):
+                st.session_state["gift_menu"] = "menu"
+                st.rerun()
 
-        else:
-            st.subheader("手動輸入房號進入")
-            input_rid = st.text_input("請輸入 6 位數房號：", key="c_input_rid").strip()
-            if st.button("進入房間", key="btn_join_gift_room"):
+        # 子功能 2：手動輸入房號
+        elif st.session_state["gift_menu"] == "join":
+            st.subheader("🔑 輸入 6 位數房號進入")
+            input_rid = st.text_input("房號：", key="c_input_rid").strip()
+            if st.button("進入房間", type="primary", key="btn_join_gift_room"):
                 if not input_rid:
                     st.error("請輸入房號！")
                 else:
@@ -191,11 +236,45 @@ with tab1:
                         st.error("找不到此房號，請確認後重新輸入！")
                     else:
                         st.session_state["current_gift_room"] = input_rid
+                        st.session_state["gift_menu"] = "menu"
                         st.rerun()
+            if st.button("⬅️ 返回主選單", key="b_back_g_j"):
+                st.session_state["gift_menu"] = "menu"
+                st.rerun()
 
-# -------------------- TAB 2: 部門抽獎 --------------------
+        # 子功能 3：我的歷史房間
+        elif st.session_state["gift_menu"] == "history":
+            st.subheader("📜 我的歷史房間卡片")
+            st.caption("輸入你的名字，雲端自動找出所有你參與過的房間卡片！")
+            search_user = st.text_input("輸入姓名查歷史卡片：", key="search_user_history").strip()
+            
+            if search_user:
+                history_query = db.collection("rooms").where("members", "array_contains", search_user).stream()
+                found_rooms = [doc.to_dict() for doc in history_query]
+
+                if not found_rooms:
+                    st.info(f"雲端找不到關於「{search_user}」的交換禮物紀錄。")
+                else:
+                    st.write(f"🎉 找到 **{len(found_rooms)}** 個你參與過的房間卡片：")
+                    for r in found_rooms:
+                        status_tag = "✅ 已開獎" if r.get("status") == "finished" else "⏳ 進行中"
+                        with st.container(border=True):
+                            c_col1, c_col2 = st.columns([3, 1])
+                            with c_col1:
+                                st.markdown(f"**🎁 {r.get('room_name', '未命名房間')}**")
+                                st.caption(f"房號：`{r['room_id']}` ｜ 房主：{r.get('host_name')} ｜ {status_tag}")
+                            with c_col2:
+                                if st.button("進入 👉", key=f"card_{r['room_id']}"):
+                                    st.session_state["current_gift_room"] = r["room_id"]
+                                    st.session_state["gift_menu"] = "menu"
+                                    st.rerun()
+            if st.button("⬅️ 返回主選單", key="b_back_g_h"):
+                st.session_state["gift_menu"] = "menu"
+                st.rerun()
+
+# ==================== TAB 2: 部門抽獎 ====================
 with tab2:
-    st.header("🎉 部門現場抽獎")
+    st.markdown('<div class="app-title">🎉 部門現場抽獎</div>', unsafe_allow_html=True)
 
     if "current_lotto_room" in st.session_state and st.session_state["current_lotto_room"]:
         l_room_id = st.session_state["current_lotto_room"]
@@ -210,12 +289,11 @@ with tab2:
         else:
             l_room = l_doc.to_dict()
             l_host = l_room.get("host_name", "房主")
-            st.info(f"📍 活動：**{l_room['room_name']}** ｜ 房號：**{l_room['room_id']}** ｜ 房主：**{l_host}**")
+            st.success(f"📍 **{l_room['room_name']}** ｜ 房號：`{l_room['room_id']}` ｜ 房主：`{l_host}`")
 
             if l_room["status"] == "waiting":
-                st.subheader("👥 現場簽到抽獎池")
-                st.write(f"目前名單（共 {len(l_room['members'])} 人）：")
-                st.success("、".join(l_room["members"]))
+                st.write(f"👥 **現場簽到抽獎池（共 {len(l_room['members'])} 人）：**")
+                st.info("、".join(l_room["members"]))
 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -241,7 +319,7 @@ with tab2:
 
                 st.markdown("---")
                 with st.expander(f"👑 房主開獎專區（僅限 {l_host} 操作）"):
-                    v_l_host_pass = st.text_input("請輸入房主管理密碼：", type="password", key="vl_h_pass")
+                    v_l_host_pass = st.text_input("請輸入房主密碼：", type="password", key="vl_h_pass")
                     draw_num = st.number_input("抽出幾個人？", min_value=1, max_value=max(1, len(l_room["members"])), value=1, step=1, key="lotto_draw_num")
                     if st.button("確認開獎 🎊", type="primary", key="btn_lotto_start_draw"):
                         if v_l_host_pass != l_room.get("host_pass"):
@@ -267,31 +345,30 @@ with tab2:
                     st.rerun()
 
     else:
-        # 部門抽獎的歷史清單卡片
-        with st.expander("📜 查看過去歷史抽獎活動", expanded=False):
-            search_lotto = db.collection("lottery_rooms").stream()
-            all_lottos = [doc.to_dict() for doc in search_lotto]
-            if all_lottos:
-                for al in all_lottos:
-                    l_stat = "✅ 已開獎" if al.get("status") == "finished" else "⏳ 進行中"
-                    with st.container(border=True):
-                        st.markdown(f"**🎉 {al.get('room_name')}**（房號：`{al['room_id']}`）- {l_stat}")
-                        if st.button("查看此抽獎結果 👉", key=f"btn_l_{al['room_id']}"):
-                            st.session_state["current_lotto_room"] = al["room_id"]
-                            st.rerun()
-            else:
-                st.info("尚無歷史抽獎紀錄。")
+        st.markdown('<div class="app-subtitle">請選擇功能開始使用：</div>', unsafe_allow_html=True)
+        if "lotto_menu" not in st.session_state:
+            st.session_state["lotto_menu"] = "menu"
 
-        st.markdown("---")
-        l_action = st.radio("選擇操作", ["建立抽獎房", "手動輸入房號進入"], horizontal=True, key="l_action_radio")
+        # 主選單按鈕
+        if st.session_state["lotto_menu"] == "menu":
+            if st.button("👑 建立房間", key="btn_m_l_create"):
+                st.session_state["lotto_menu"] = "create"
+                st.rerun()
+            if st.button("🔑 手動輸入房號進入", key="btn_m_l_join"):
+                st.session_state["lotto_menu"] = "join"
+                st.rerun()
+            if st.button("📜 我的歷史房間", key="btn_m_l_history"):
+                st.session_state["lotto_menu"] = "history"
+                st.rerun()
 
-        if l_action == "建立抽獎房":
-            st.subheader("建立現場抽獎房")
-            new_l_name = st.text_input("抽獎活動名稱（如：會計部尾牙）", key="nl_name")
+        # 子功能 1：建立房間
+        elif st.session_state["lotto_menu"] == "create":
+            st.subheader("👑 建立現場抽獎房")
+            new_l_name = st.text_input("抽獎活動名稱（如：尾牙抽獎）", key="nl_name")
             new_l_host = st.text_input("房主姓名", key="nl_host")
-            new_l_pass = st.text_input("設定房主專用密碼（4位數數字）", type="password", max_chars=4, key="nl_pass")
+            new_l_pass = st.text_input("設定房主專用密碼（4位數）", type="password", max_chars=4, key="nl_pass")
 
-            if st.button("建立房間並直接進入 🚀", type="primary", key="btn_create_lotto_room"):
+            if st.button("確認建立並進入 🚀", type="primary", key="btn_create_lotto_room"):
                 if not new_l_name.strip() or not new_l_host.strip() or not new_l_pass.strip():
                     st.error("請完整填寫活動名稱、房主姓名與密碼！")
                 else:
@@ -302,11 +379,17 @@ with tab2:
                         "winners": [], "draw_count": 0
                     })
                     st.session_state["current_lotto_room"] = new_l_id
+                    st.session_state["lotto_menu"] = "menu"
                     st.rerun()
-        else:
-            st.subheader("手動輸入房號進入")
-            input_l_id = st.text_input("請輸入 6 位數抽獎房號：", key="inl_id").strip()
-            if st.button("進入抽獎房", key="btn_join_lotto_room"):
+            if st.button("⬅️ 返回主選單", key="b_back_l_c"):
+                st.session_state["lotto_menu"] = "menu"
+                st.rerun()
+
+        # 子功能 2：手動輸入房號
+        elif st.session_state["lotto_menu"] == "join":
+            st.subheader("🔑 輸入 6 位數抽獎房號")
+            input_l_id = st.text_input("房號：", key="inl_id").strip()
+            if st.button("進入抽獎房", type="primary", key="btn_join_lotto_room"):
                 if not input_l_id:
                     st.error("請輸入房號！")
                 else:
@@ -315,4 +398,28 @@ with tab2:
                         st.error("找不到此抽獎房號！")
                     else:
                         st.session_state["current_lotto_room"] = input_l_id
+                        st.session_state["lotto_menu"] = "menu"
                         st.rerun()
+            if st.button("⬅️ 返回主選單", key="b_back_l_j"):
+                st.session_state["lotto_menu"] = "menu"
+                st.rerun()
+
+        # 子功能 3：我的歷史房間
+        elif st.session_state["lotto_menu"] == "history":
+            st.subheader("📜 歷史抽獎活動卡片")
+            search_lotto = db.collection("lottery_rooms").stream()
+            all_lottos = [doc.to_dict() for doc in search_lotto]
+            if all_lottos:
+                for al in all_lottos:
+                    l_stat = "✅ 已開獎" if al.get("status") == "finished" else "⏳ 進行中"
+                    with st.container(border=True):
+                        st.markdown(f"**🎉 {al.get('room_name')}**（房號：`{al['room_id']}`）- {l_stat}")
+                        if st.button("查看此結果 👉", key=f"btn_l_{al['room_id']}"):
+                            st.session_state["current_lotto_room"] = al["room_id"]
+                            st.session_state["lotto_menu"] = "menu"
+                            st.rerun()
+            else:
+                st.info("尚無歷史抽獎紀錄。")
+            if st.button("⬅️ 返回主選單", key="b_back_l_h"):
+                st.session_state["lotto_menu"] = "menu"
+                st.rerun()
