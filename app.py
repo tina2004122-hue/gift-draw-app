@@ -47,7 +47,7 @@ with tab1:
 
         if not room_doc.exists:
             st.error("此房間已不存在！")
-            if st.button("返回大廳"):
+            if st.button("返回大廳", key="back_gift_hall"):
                 del st.session_state["current_gift_room"]
                 st.rerun()
         else:
@@ -75,7 +75,7 @@ with tab1:
                 join_name = st.text_input("輸入你的名字：", key="join_name_input").strip()
                 join_pass = st.text_input("設定 4 位數個人防窺密碼：", type="password", max_chars=4, key="join_pass_input").strip()
 
-                if st.button("確認簽到加入"):
+                if st.button("確認簽到加入", key="btn_confirm_join_gift"):
                     if not join_name or not join_pass:
                         st.error("名字與密碼不能為空！")
                     elif join_name in room["members"]:
@@ -91,7 +91,7 @@ with tab1:
                 with st.expander(f"👑 房主專區（僅限 {host_name} 操作）"):
                     st.caption("防誤觸保護：輸入房主密碼方可啟動配對")
                     verify_host_pass = st.text_input("請輸入房主密碼：", type="password", key="v_h_pass")
-                    if st.button("全員到齊，開始配對開獎！", type="primary"):
+                    if st.button("全員到齊，開始配對開獎！", type="primary", key="btn_gift_start_draw"):
                         if verify_host_pass != room["passcodes"].get(host_name):
                             st.error("❌ 房主密碼錯誤！只有房主可以按開獎！")
                         elif len(room["members"]) < 2:
@@ -110,10 +110,10 @@ with tab1:
 
                 st.markdown("---")
                 st.markdown("#### 🎁 查看我抽到誰（防偷看保護）")
-                my_name = st.selectbox("選擇你的名字：", ["-- 請選擇 --"] + sorted(room["members"]))
+                my_name = st.selectbox("選擇你的名字：", ["-- 請選擇 --"] + sorted(room["members"]), key="sb_gift_name")
                 my_pass = st.text_input("輸入當初設定的防窺密碼：", type="password", key="view_pass_input")
 
-                if st.button("揭曉我的送禮對象 🎯"):
+                if st.button("揭曉我的送禮對象 🎯", key="btn_reveal_gift"):
                     correct_pass = room["passcodes"].get(my_name)
                     if my_name == "-- 請選擇 --":
                         st.warning("請先選擇你的名字！")
@@ -161,7 +161,7 @@ with tab1:
             host_name = st.text_input("房主姓名（房主亦一同參與）", key="c_host_name")
             host_pass = st.text_input("設定房主專用密碼（4位數數字）", type="password", max_chars=4, key="c_host_pass")
 
-            if st.button("建立房間並直接進入 🚀", type="primary"):
+            if st.button("建立房間並直接進入 🚀", type="primary", key="btn_create_gift_room"):
                 if not room_name.strip() or not host_name.strip() or not host_pass.strip():
                     st.error("請完整填寫房名、房主姓名與密碼！")
                 else:
@@ -182,7 +182,7 @@ with tab1:
         else:
             st.subheader("手動輸入房號進入")
             input_rid = st.text_input("請輸入 6 位數房號：", key="c_input_rid").strip()
-            if st.button("進入房間"):
+            if st.button("進入房間", key="btn_join_gift_room"):
                 if not input_rid:
                     st.error("請輸入房號！")
                 else:
@@ -204,7 +204,7 @@ with tab2:
 
         if not l_doc.exists:
             st.error("抽獎房不存在！")
-            if st.button("返回"):
+            if st.button("返回", key="back_lotto_hall"):
                 del st.session_state["current_lotto_room"]
                 st.rerun()
         else:
@@ -228,7 +228,7 @@ with tab2:
 
                 st.markdown("---")
                 l_join_name = st.text_input("輸入名字簽到：", key="l_join_name").strip()
-                if st.button("簽到加入抽獎"):
+                if st.button("簽到加入抽獎", key="btn_confirm_join_lotto"):
                     if not l_join_name:
                         st.error("名字不能為空！")
                     elif l_join_name in l_room["members"]:
@@ -242,8 +242,8 @@ with tab2:
                 st.markdown("---")
                 with st.expander(f"👑 房主開獎專區（僅限 {l_host} 操作）"):
                     v_l_host_pass = st.text_input("請輸入房主管理密碼：", type="password", key="vl_h_pass")
-                    draw_num = st.number_input("抽出幾個人？", min_value=1, max_value=max(1, len(l_room["members"])), value=1, step=1)
-                    if st.button("確認開獎 🎊", type="primary"):
+                    draw_num = st.number_input("抽出幾個人？", min_value=1, max_value=max(1, len(l_room["members"])), value=1, step=1, key="lotto_draw_num")
+                    if st.button("確認開獎 🎊", type="primary", key="btn_lotto_start_draw"):
                         if v_l_host_pass != l_room.get("host_pass"):
                             st.error("❌ 房主密碼錯誤！只有房主能開獎！")
                         elif len(l_room["members"]) == 0:
@@ -291,7 +291,7 @@ with tab2:
             new_l_host = st.text_input("房主姓名", key="nl_host")
             new_l_pass = st.text_input("設定房主專用密碼（4位數數字）", type="password", max_chars=4, key="nl_pass")
 
-            if st.button("建立房間並直接進入 🚀", type="primary"):
+            if st.button("建立房間並直接進入 🚀", type="primary", key="btn_create_lotto_room"):
                 if not new_l_name.strip() or not new_l_host.strip() or not new_l_pass.strip():
                     st.error("請完整填寫活動名稱、房主姓名與密碼！")
                 else:
@@ -306,7 +306,7 @@ with tab2:
         else:
             st.subheader("手動輸入房號進入")
             input_l_id = st.text_input("請輸入 6 位數抽獎房號：", key="inl_id").strip()
-            if st.button("進入抽獎房"):
+            if st.button("進入抽獎房", key="btn_join_lotto_room"):
                 if not input_l_id:
                     st.error("請輸入房號！")
                 else:
