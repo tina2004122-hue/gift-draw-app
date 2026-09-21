@@ -20,7 +20,6 @@ db = init_firebase()
 
 # ==================== 2. 演算法函式 ====================
 def derangement_shuffle(names):
-    """環狀閉環配對：保證無人抽到自己、無重複、成完整閉環"""
     shuffled = names.copy()
     random.shuffle(shuffled)
     pairs = {}
@@ -30,71 +29,70 @@ def derangement_shuffle(names):
         pairs[giver] = receiver
     return pairs
 
-# ==================== 3. 頁面設定與真正絕對居中 CSS ====================
+# ==================== 3. 頁面設定與可愛 App CSS ====================
 st.set_page_config(page_title="派對抽獎小助手", layout="centered", page_icon="🎁")
 
 st.markdown("""
 <style>
-    /* 背景色 */
+    /* 整體背景 */
     .stApp {
-        background-color: #f8fafc;
+        background: linear-gradient(180deg, #fff7f7 0%, #f7f9fa 100%);
     }
     header, footer {visibility: hidden;}
 
-    /* 強制將 Streamlit 主內容容器限制在手機寬度，並水平完全置中 */
-    .block-container {
-        max-width: 420px !important;
-        padding-top: 2.5rem !important;
-        padding-bottom: 2rem !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
+    /* 確保所有元素置中對齊 */
+    .stMainBlockContainer, [data-testid="stVerticalBlock"] {
+        align-items: center !important;
+        text-align: center !important;
     }
 
-    /* 標題置中 */
+    /* 標題與文字居中 */
     .app-title {
-        text-align: center;
         font-size: 2.2rem;
         font-weight: 800;
         color: #ff5a5f;
-        margin-bottom: 0.3rem;
+        margin-top: 1.5rem;
+        margin-bottom: 0.2rem;
+        text-align: center;
     }
     .app-subtitle {
-        text-align: center;
-        color: #64748b;
+        color: #718096;
         font-size: 1rem;
         margin-bottom: 2rem;
+        text-align: center;
     }
 
-    /* 按鈕 100% 寬度填滿置中卡片 */
-    div.stButton > button {
-        width: 100% !important;
-        border-radius: 20px !important;
-        height: 3.8rem !important;
-        font-size: 1.15rem !important;
-        font-weight: 700 !important;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.06) !important;
-        transition: all 0.2s ease !important;
-        border: 1px solid #edf2f7 !important;
-        background-color: #ffffff !important;
+    /* 首頁圓形按鈕樣式 */
+    .circle-btn-container div.stButton > button {
+        width: 140px !important;
+        height: 140px !important;
+        border-radius: 50% !important;
+        font-size: 1.1rem !important;
+        font-weight: 800 !important;
+        border: 4px solid #ffffff !important;
+        box-shadow: 0 10px 25px rgba(255, 90, 95, 0.15) !important;
+        background: #ffffff !important;
         color: #2d3748 !important;
-        margin-bottom: 0.8rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: 0 auto !important;
+        transition: all 0.25s ease !important;
+        white-space: pre-wrap !important;
+        line-height: 1.4 !important;
     }
-    div.stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.1) !important;
+    .circle-btn-container div.stButton > button:hover {
+        transform: translateY(-5px) scale(1.05) !important;
+        box-shadow: 0 14px 28px rgba(255, 90, 95, 0.25) !important;
         border-color: #ff5a5f !important;
         color: #ff5a5f !important;
     }
 
-    /* 主要動作的紅色高亮按鈕 */
-    div.stButton > button[kind="primary"] {
-        background-color: #ff5a5f !important;
-        color: #ffffff !important;
-        border: none !important;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        background-color: #e0484d !important;
-        color: #ffffff !important;
+    /* 內頁通用圓角長按鈕 */
+    div.stButton > button {
+        border-radius: 16px !important;
+        font-weight: 700 !important;
+        transition: all 0.2s ease !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -103,21 +101,29 @@ if "app_page" not in st.session_state:
     st.session_state["app_page"] = "home"
 
 # =========================================================
-# 🏠 第一頁：首頁兩大按鈕（完美居中）
+# 🏠 第一頁：首頁（對齊標題、可愛雙圓形按鈕）
 # =========================================================
 if st.session_state["app_page"] == "home":
     st.markdown('<div class="app-title">🎁 派對抽獎小助手</div>', unsafe_allow_html=True)
     st.markdown('<div class="app-subtitle">請選擇您要使用的功能：</div>', unsafe_allow_html=True)
 
-    if st.button("🎄 交換禮物專用", key="btn_to_gift"):
-        st.session_state["app_page"] = "gift_menu"
-        st.session_state["gift_action"] = "menu"
-        st.rerun()
+    # 用兩欄左右對稱，放置兩個超可愛的大圓形按鈕
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown('<div class="circle-btn-container">', unsafe_allow_html=True)
+        if st.button("🎄\n交換禮物\n專用", key="btn_to_gift"):
+            st.session_state["app_page"] = "gift_menu"
+            st.session_state["gift_action"] = "menu"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("🎉 部門抽獎專用", key="btn_to_lotto"):
-        st.session_state["app_page"] = "lotto_menu"
-        st.session_state["lotto_action"] = "menu"
-        st.rerun()
+    with c2:
+        st.markdown('<div class="circle-btn-container">', unsafe_allow_html=True)
+        if st.button("🎉\n部門抽獎\n專用", key="btn_to_lotto"):
+            st.session_state["app_page"] = "lotto_menu"
+            st.session_state["lotto_action"] = "menu"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================================
 # 🎄 第二層：交換禮物專區
@@ -144,11 +150,11 @@ elif st.session_state["app_page"] == "gift_menu":
                 st.write(f"👥 **已加入名單（共 {len(room['members'])} 人）：**")
                 st.info("、".join(room["members"]))
 
-                c_btn1, c_btn2 = st.columns(2)
-                with c_btn1:
+                col1, col2 = st.columns(2)
+                with col1:
                     if st.button("🔄 刷新名單", key="ref_g"):
                         st.rerun()
-                with c_btn2:
+                with col2:
                     if st.button("🚪 離開房間", key="exit_g"):
                         del st.session_state["current_gift_room"]
                         st.rerun()
@@ -287,12 +293,15 @@ elif st.session_state["app_page"] == "gift_menu":
                     for r in found_rooms:
                         status_tag = "✅ 已開獎" if r.get("status") == "finished" else "⏳ 進行中"
                         with st.container(border=True):
-                            st.markdown(f"**🎁 {r.get('room_name', '未命名房間')}**")
-                            st.caption(f"房號：`{r['room_id']}` ｜ 房主：{r.get('host_name')} ｜ {status_tag}")
-                            if st.button("進入此房間卡片 👉", key=f"card_{r['room_id']}"):
-                                st.session_state["current_gift_room"] = r["room_id"]
-                                st.session_state["gift_action"] = "menu"
-                                st.rerun()
+                            c1, c2 = st.columns([3, 1])
+                            with c1:
+                                st.markdown(f"**🎁 {r.get('room_name', '未命名房間')}**")
+                                st.caption(f"房號：`{r['room_id']}` ｜ 房主：{r.get('host_name')} ｜ {status_tag}")
+                            with c2:
+                                if st.button("進入卡片 👉", key=f"card_{r['room_id']}"):
+                                    st.session_state["current_gift_room"] = r["room_id"]
+                                    st.session_state["gift_action"] = "menu"
+                                    st.rerun()
             if st.button("⬅️ 返回", key="b_back_gh"):
                 st.session_state["gift_action"] = "menu"
                 st.rerun()
@@ -322,11 +331,11 @@ elif st.session_state["app_page"] == "lotto_menu":
                 st.write(f"👥 **現場抽獎池（共 {len(l_room['members'])} 人）：**")
                 st.info("、".join(l_room["members"]))
 
-                c_btn1, c_btn2 = st.columns(2)
-                with c_btn1:
+                col1, col2 = st.columns(2)
+                with col1:
                     if st.button("🔄 刷新名單", key="ref_l"):
                         st.rerun()
-                with c_btn2:
+                with col2:
                     if st.button("🚪 離開房間", key="exit_l"):
                         del st.session_state["current_lotto_room"]
                         st.rerun()
